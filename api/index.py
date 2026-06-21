@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import json, os
 
@@ -11,7 +12,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load data at startup
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'q-vercel-latency.json')
 with open(DATA_PATH) as f:
     DATA = json.load(f)
@@ -25,6 +25,17 @@ def percentile(arr, p):
         return s[n] + f * (s[n+1] - s[n])
     return s[n]
 
+@app.options("/")
+async def options():
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 @app.post("/")
 async def analytics(request: Request):
     body = await request.json()
@@ -36,7 +47,6 @@ async def analytics(request: Request):
         records = [d for d in DATA if d["region"] == region]
         latencies = [d["latency_ms"] for d in records]
         uptimes = [d["uptime_pct"] for d in records]
-
         result.append({
             "region": region,
             "avg_latency": round(sum(latencies)/len(latencies), 2),
@@ -45,4 +55,7 @@ async def analytics(request: Request):
             "breaches": sum(1 for l in latencies if l > threshold)
         })
 
-    return {"regions": result}
+    return JSONResponse(
+        content={"regions": result},
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
