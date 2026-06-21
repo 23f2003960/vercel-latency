@@ -1,61 +1,303 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import json, os
+from fastapi.responses import Response
+import numpy as np
+import json
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'q-vercel-latency.json')
-with open(DATA_PATH) as f:
-    DATA = json.load(f)
+@app.get("/")
+def root():
+    return {"status": "ok"}
 
-def percentile(arr, p):
-    s = sorted(arr)
-    r = (len(s) - 1) * p
-    n = int(r)
-    f = r - n
-    if n + 1 < len(s):
-        return s[n] + f * (s[n+1] - s[n])
-    return s[n]
+@app.options("/api/latency")
+async def options_handler():
+    return Response(status_code=200)
 
-@app.options("/")
-async def options():
-    return JSONResponse(
-        content={},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+# ✏️  PASTE YOUR OWN TELEMETRY JSON HERE (downloaded from exam portal)
+TELEMETRY_DATA = json.loads("""
+[
+  {
+    "region": "apac",
+    "service": "catalog",
+    "latency_ms": 211.8,
+    "uptime_pct": 98.537,
+    "timestamp": 20250301
+  },
+  {
+    "region": "apac",
+    "service": "payments",
+    "latency_ms": 209.74,
+    "uptime_pct": 98.245,
+    "timestamp": 20250302
+  },
+  {
+    "region": "apac",
+    "service": "payments",
+    "latency_ms": 122.88,
+    "uptime_pct": 97.836,
+    "timestamp": 20250303
+  },
+  {
+    "region": "apac",
+    "service": "support",
+    "latency_ms": 132.29,
+    "uptime_pct": 97.703,
+    "timestamp": 20250304
+  },
+  {
+    "region": "apac",
+    "service": "recommendations",
+    "latency_ms": 158.64,
+    "uptime_pct": 98.955,
+    "timestamp": 20250305
+  },
+  {
+    "region": "apac",
+    "service": "analytics",
+    "latency_ms": 133.91,
+    "uptime_pct": 98.672,
+    "timestamp": 20250306
+  },
+  {
+    "region": "apac",
+    "service": "payments",
+    "latency_ms": 164.93,
+    "uptime_pct": 98.762,
+    "timestamp": 20250307
+  },
+  {
+    "region": "apac",
+    "service": "payments",
+    "latency_ms": 217.86,
+    "uptime_pct": 99.047,
+    "timestamp": 20250308
+  },
+  {
+    "region": "apac",
+    "service": "analytics",
+    "latency_ms": 175.1,
+    "uptime_pct": 98.097,
+    "timestamp": 20250309
+  },
+  {
+    "region": "apac",
+    "service": "support",
+    "latency_ms": 196.08,
+    "uptime_pct": 98.511,
+    "timestamp": 20250310
+  },
+  {
+    "region": "apac",
+    "service": "support",
+    "latency_ms": 222.64,
+    "uptime_pct": 97.902,
+    "timestamp": 20250311
+  },
+  {
+    "region": "apac",
+    "service": "payments",
+    "latency_ms": 140.68,
+    "uptime_pct": 98.913,
+    "timestamp": 20250312
+  },
+  {
+    "region": "emea",
+    "service": "checkout",
+    "latency_ms": 205.78,
+    "uptime_pct": 98.986,
+    "timestamp": 20250301
+  },
+  {
+    "region": "emea",
+    "service": "payments",
+    "latency_ms": 204.77,
+    "uptime_pct": 97.65,
+    "timestamp": 20250302
+  },
+  {
+    "region": "emea",
+    "service": "analytics",
+    "latency_ms": 199.58,
+    "uptime_pct": 98.705,
+    "timestamp": 20250303
+  },
+  {
+    "region": "emea",
+    "service": "payments",
+    "latency_ms": 145.27,
+    "uptime_pct": 97.998,
+    "timestamp": 20250304
+  },
+  {
+    "region": "emea",
+    "service": "support",
+    "latency_ms": 224.95,
+    "uptime_pct": 97.534,
+    "timestamp": 20250305
+  },
+  {
+    "region": "emea",
+    "service": "payments",
+    "latency_ms": 123.4,
+    "uptime_pct": 98.237,
+    "timestamp": 20250306
+  },
+  {
+    "region": "emea",
+    "service": "support",
+    "latency_ms": 103.48,
+    "uptime_pct": 98.716,
+    "timestamp": 20250307
+  },
+  {
+    "region": "emea",
+    "service": "checkout",
+    "latency_ms": 177.64,
+    "uptime_pct": 98.446,
+    "timestamp": 20250308
+  },
+  {
+    "region": "emea",
+    "service": "payments",
+    "latency_ms": 174.22,
+    "uptime_pct": 97.409,
+    "timestamp": 20250309
+  },
+  {
+    "region": "emea",
+    "service": "payments",
+    "latency_ms": 124.89,
+    "uptime_pct": 97.396,
+    "timestamp": 20250310
+  },
+  {
+    "region": "emea",
+    "service": "support",
+    "latency_ms": 155.96,
+    "uptime_pct": 97.23,
+    "timestamp": 20250311
+  },
+  {
+    "region": "emea",
+    "service": "support",
+    "latency_ms": 144.42,
+    "uptime_pct": 98.829,
+    "timestamp": 20250312
+  },
+  {
+    "region": "amer",
+    "service": "recommendations",
+    "latency_ms": 127.89,
+    "uptime_pct": 97.372,
+    "timestamp": 20250301
+  },
+  {
+    "region": "amer",
+    "service": "analytics",
+    "latency_ms": 141.16,
+    "uptime_pct": 99.403,
+    "timestamp": 20250302
+  },
+  {
+    "region": "amer",
+    "service": "checkout",
+    "latency_ms": 122.06,
+    "uptime_pct": 98.258,
+    "timestamp": 20250303
+  },
+  {
+    "region": "amer",
+    "service": "payments",
+    "latency_ms": 224.58,
+    "uptime_pct": 97.344,
+    "timestamp": 20250304
+  },
+  {
+    "region": "amer",
+    "service": "support",
+    "latency_ms": 167.56,
+    "uptime_pct": 99.077,
+    "timestamp": 20250305
+  },
+  {
+    "region": "amer",
+    "service": "catalog",
+    "latency_ms": 186.78,
+    "uptime_pct": 98.595,
+    "timestamp": 20250306
+  },
+  {
+    "region": "amer",
+    "service": "support",
+    "latency_ms": 227.55,
+    "uptime_pct": 98.8,
+    "timestamp": 20250307
+  },
+  {
+    "region": "amer",
+    "service": "checkout",
+    "latency_ms": 138.89,
+    "uptime_pct": 97.696,
+    "timestamp": 20250308
+  },
+  {
+    "region": "amer",
+    "service": "checkout",
+    "latency_ms": 234.12,
+    "uptime_pct": 98.914,
+    "timestamp": 20250309
+  },
+  {
+    "region": "amer",
+    "service": "catalog",
+    "latency_ms": 123.7,
+    "uptime_pct": 97.305,
+    "timestamp": 20250310
+  },
+  {
+    "region": "amer",
+    "service": "support",
+    "latency_ms": 207.3,
+    "uptime_pct": 99.28,
+    "timestamp": 20250311
+  },
+  {
+    "region": "amer",
+    "service": "catalog",
+    "latency_ms": 121.82,
+    "uptime_pct": 97.178,
+    "timestamp": 20250312
+  }
+]
+""")
 
-@app.post("/")
-async def analytics(request: Request):
+@app.post("/api/latency")
+async def latency_analytics(request: Request):
     body = await request.json()
     regions = body.get("regions", [])
-    threshold = body.get("threshold_ms", 180)
+    threshold_ms = body.get("threshold_ms", 180)
 
-    result = []
+    results = []
     for region in regions:
-        records = [d for d in DATA if d["region"] == region]
-        latencies = [d["latency_ms"] for d in records]
-        uptimes = [d["uptime_pct"] for d in records]
-        result.append({
-            "region": region,
-            "avg_latency": round(sum(latencies)/len(latencies), 2),
-            "p95_latency": round(percentile(latencies, 0.95), 2),
-            "avg_uptime": round(sum(uptimes)/len(uptimes), 3),
-            "breaches": sum(1 for l in latencies if l > threshold)
+        records   = [r for r in TELEMETRY_DATA if r["region"] == region]
+        latencies = [r["latency_ms"] for r in records]
+        uptimes   = [r["uptime_pct"]  for r in records]
+        results.append({
+            "region":      region,
+            "avg_latency": round(float(np.mean(latencies)), 2),
+            "p95_latency": round(float(np.percentile(latencies, 95)), 2),
+            "avg_uptime":  round(float(np.mean(uptimes)), 3),
+            "breaches":    int(sum(1 for l in latencies if l > threshold_ms))
         })
 
-    return JSONResponse(
-        content={"regions": result},
-        headers={"Access-Control-Allow-Origin": "*"}
-    )
+    return {"regions": results}
